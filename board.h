@@ -22,8 +22,8 @@ public:
 	typedef int reward;
 
 public:
-	board() : tile(), attr(0) {}
-	board(const grid& b, data v = 0) : tile(b), attr(v) {}
+	board() : tile(), attr(0), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288 }) {}
+	board(const grid& b, data v = 0) : tile(b), attr(v), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288}) {}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
 
@@ -53,7 +53,7 @@ public:
 	 */
 	reward place(unsigned pos, cell tile) {
 		if (pos >= 16) return -1;
-		if (tile != 1 && tile != 2) return -1;
+		if (tile != 1 && tile != 2 && tile != 3) return -1;
 		operator()(pos) = tile;
 		return 0;
 	}
@@ -78,14 +78,14 @@ public:
 		for (int r = 0; r < 4; r++) {
 			auto& row = tile[r];
 			int top = 0, hold = 0;
-			for (int c = 0; c < 4; c++) {
+			/*for (int c = 0; c < 4; c++) {
 				int tile = row[c];
 				if (tile == 0) continue;
 				row[c] = 0;
 				if (hold) {
-					if (tile == hold) {
+					if (tile == hold) { 
 						row[top++] = ++tile;
-						score += (1 << tile);
+						score += (1 << tile); // reward
 						hold = 0;
 					} else {
 						row[top++] = hold;
@@ -93,7 +93,7 @@ public:
 					}
 				} else {
 					hold = tile;
-				}
+				}*/
 			}
 			if (hold) tile[r][top] = hold;
 		}
@@ -158,11 +158,14 @@ public:
 	void reverse() { reflect_horizontal(); reflect_vertical(); }
 
 public:
+	const int get_value (int idx)const{
+		return value[idx];
+	}
 	friend std::ostream& operator <<(std::ostream& out, const board& b) {
 		out << "+------------------------+" << std::endl;
 		for (auto& row : b.tile) {
 			out << "|" << std::dec;
-			for (auto t : row) out << std::setw(6) << ((1 << t) & -2u);
+			for (auto t : row) out << std::setw(6) << b.get_value(t);
 			out << "|" << std::endl;
 		}
 		out << "+------------------------+" << std::endl;
@@ -172,4 +175,5 @@ public:
 private:
 	grid tile;
 	data attr;
+	std::array<int, 16> value;
 };

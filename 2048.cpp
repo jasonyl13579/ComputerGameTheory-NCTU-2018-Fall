@@ -74,10 +74,11 @@ int main(int argc, const char* argv[]) {
 		}
 		
 		agent& win = game.last_turns(play, evil);
-		stat.close_episode(win.name());
+		//stat.close_episode(win.name());
 
 		play.close_episode(win.name());
 		evil.close_episode(win.name());
+		stat.close_episode(win.name());
 	}
 
 	if (summary) {

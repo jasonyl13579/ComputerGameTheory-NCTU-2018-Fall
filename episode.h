@@ -6,6 +6,7 @@
 #include <sstream>
 #include <chrono>
 #include <numeric>
+#include <math.h>
 #include "board.h"
 #include "action.h"
 #include "agent.h"
@@ -27,6 +28,11 @@ public:
 	}
 	void close_episode(const std::string& tag) {
 		ep_close = { tag, millisec() };
+		ep_score = 0;
+		for (int i=0;i<16;i++){
+			if (ep_state(i) > 2) ep_score += pow(3, ep_state(i)-2);
+		}	
+		 
 	}
 	bool apply_action(action move) {
 		board::reward reward = move.apply(state());

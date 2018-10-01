@@ -2,6 +2,7 @@
 #include <array>
 #include <iostream>
 #include <iomanip>
+#include <math.h> 
 
 /**
  * array-based board for 2048
@@ -55,6 +56,7 @@ public:
 		if (pos >= 16) return -1;
 		if (tile != 1 && tile != 2 && tile != 3) return -1;
 		operator()(pos) = tile;
+		attr = 0;
 		return 0;
 	}
 
@@ -73,48 +75,50 @@ public:
 	}
 
 	reward slide_left() {
+		attr = 1; 
 		board prev = *this;
 		reward score = 0;
 		for (int r = 0; r < 4; r++) {
 			auto& row = tile[r];
-			int top = 0, hold = 0;
-			/*for (int c = 0; c < 4; c++) {
+			//int hold = 0, merge = 1;
+			for (int c = 0; c < 3; c++) { //ignore fourth block
 				int tile = row[c];
-				if (tile == 0) continue;
-				row[c] = 0;
-				if (hold) {
-					if (tile == hold) { 
-						row[top++] = ++tile;
-						score += (1 << tile); // reward
-						hold = 0;
-					} else {
-						row[top++] = hold;
-						hold = tile;
-					}
-				} else {
-					hold = tile;
-				}*/
+				if (tile == 0) {
+					row[c] = row[c+1];
+					row[c+1] = 0;
+				} else if ((row[c] == 1 && row[c+1] == 2) || (row[c] == 2 && row[c+1] == 1)){
+					row[c] = 3;
+					row[c+1] = 0;
+					score += 3;
+				} else if (row[c] == row[c+1] && row[c] != 1 && row[c] != 2){
+					row[c]++;
+					score += (pow(3,row[c]-2));
+					row[c+1] = 0;
+				}	
 			}
-			if (hold) tile[r][top] = hold;
 		}
+		
 		return (*this != prev) ? score : -1;
 	}
 	reward slide_right() {
 		reflect_horizontal();
 		reward score = slide_left();
 		reflect_horizontal();
+		attr = 2; 
 		return score;
 	}
 	reward slide_up() {
 		rotate_right();
 		reward score = slide_right();
 		rotate_left();
+		attr = 3; 
 		return score;
 	}
 	reward slide_down() {
 		rotate_right();
 		reward score = slide_left();
 		rotate_left();
+		attr = 4; 
 		return score;
 	}
 

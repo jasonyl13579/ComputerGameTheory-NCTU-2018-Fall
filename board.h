@@ -3,6 +3,8 @@
 #include <iostream>
 #include <iomanip>
 #include <math.h> 
+#include "pattern.h"
+#include "weight.h"
 
 /**
  * array-based board for 2048
@@ -23,20 +25,22 @@ public:
 	typedef int reward;
 	struct data {    
 		int previous_dir; 
-		int space;
+		int modify;
+		reward rewards;
 	};    
 public:
 	board() : tile(), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288 }) {
 		attr.previous_dir = 0;
-		attr.space = 16;
+		attr.modify = -1;
+		attr.rewards = -1;
 	}
 	board(const grid& b, data v) : tile(b), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288}) {
 		attr.previous_dir = v.previous_dir;
-		attr.space = v.space;
+		attr.modify = v.modify;
 	}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
-
+	//~board();
 	operator grid&() { return tile; }
 	operator const grid&() const { return tile; }
 	row& operator [](unsigned i) { return tile[i]; }
@@ -66,7 +70,6 @@ public:
 		if (tile != 1 && tile != 2 && tile != 3) return -1;
 		operator()(pos) = tile;
 		attr.previous_dir = 0;
-		attr.space --;
 		return 0;
 	}
 
@@ -74,16 +77,30 @@ public:
 	 * apply an action to the board
 	 * return the reward of the action, or -1 if the action is illegal
 	 */
-	reward slide(unsigned opcode) {
+	board slide_with_board(unsigned opcode) {
+		reward r = -1;
 		switch (opcode & 0b11) {
-		case 0: return slide_up();
-		case 1: return slide_right();
-		case 2: return slide_down();
-		case 3: return slide_left();
-		default: return -1;
+			case 0: r = slide_up(); break;
+			case 1: r = slide_right(); break;
+			case 2: r = slide_down(); break;
+			case 3: r = slide_left(); break;
+			default: return {};
+		}
+		if (r == -1) return {};
+		else {
+			attr.modify = 1;
+			return *this;
 		}
 	}
-
+	reward slide(unsigned opcode) {
+		switch (opcode & 0b11) {
+			case 0: return slide_up(); 
+			case 1: return slide_right();
+			case 2: return slide_down(); 
+			case 3: return slide_left();
+			default: return -1;
+		}
+	}
 	reward slide_left() {
 		attr.previous_dir = 1; 
 		board prev = *this;
@@ -99,17 +116,18 @@ public:
 				} else if ((row[c] == 1 && row[c+1] == 2) || (row[c] == 2 && row[c+1] == 1)){
 					row[c] = 3;
 					row[c+1] = 0;
-					score += 3;
-					attr.space --;
+					score += 3;				
 				} else if (row[c] == row[c+1] && row[c] != 1 && row[c] != 2){
 					row[c]++;
 					score += (pow(3,row[c]-2));
 					row[c+1] = 0;
-					attr.space --;
 				}	
 			}
 		}
-		
+		if (*this != prev){
+			attr.rewards = score;
+			return score;
+		}else return -1;
 		return (*this != prev) ? score : -1;
 	}
 	reward slide_right() {
@@ -172,10 +190,44 @@ public:
 	void rotate_right() { transpose(); reflect_horizontal(); } // clockwise
 	void rotate_left() { transpose(); reflect_vertical(); } // counterclockwise
 	void reverse() { reflect_horizontal(); reflect_vertical(); }
-
+	
+	int evaluation(pattern& patterns, std::vector<weight>& net){
+		int result = 0;
+		//std::cout << "pattern:" << patterns.size() << std::endl;
+		for (int rotate=0; rotate<4; rotate++){
+			rotate_right();
+			for (size_t i=0; i<patterns.size(); i++){
+				int idx = 0;
+				for (size_t j=0; j<patterns[i].size(); j++){
+					idx = idx * 16 + get_index(patterns[i][j]);
+					//std::cout << get_index(patterns[i][j]) << std::endl;
+				}
+				//std::cout << idx << std::endl;
+				result += net[i][idx];
+			}
+		}
+		return result;
+	}
+	
+	void upgrade_weight( int previous_value, int current_value, std::vector<weight>& net, pattern& patterns,float alpha){
+		for (size_t i=0; i<patterns.size(); i++){
+			int idx = 0;
+			for (size_t j=0; j<patterns[i].size(); j++){
+				idx = idx * 16 + get_index(patterns[i][j]);
+					//std::cout << get_index(patterns[i][j]) << std::endl;
+			}
+				//std::cout << idx << std::endl;
+			if (current_value == -1) net[i][idx] = 0;
+			else net[i][idx] += alpha * (current_value - previous_value);
+		}
+		return;
+	}
 public:
 	const int get_value (int idx)const{
 		return value[idx];
+	}
+	int get_index(int idx){
+		return tile[idx / 4][idx % 4];
 	}
 	friend std::ostream& operator <<(std::ostream& out, const board& b) {
 		out << "+------------------------+" << std::endl;

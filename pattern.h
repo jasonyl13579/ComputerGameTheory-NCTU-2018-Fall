@@ -7,11 +7,11 @@
 using namespace std;
 class pattern {
 public:
-	pattern(const std::string& info = "simple"){
+	pattern(const std::string& info = "simple") : type(1){
 		if ( info == "simple"){
 			std::array<int, 4> tupleArray = {0, 1, 2, 3}; 
 			vector<int> tuple;
-			for (int i=0; i<4; i++){
+			for (int i=0; i<2; i++){
 				tupleArray = {0 + 4*i, 1 + 4*i, 2 + 4*i, 3 + 4*i};
 				tuple.assign(tupleArray.begin(), tupleArray.end()); 
 				tuples.emplace_back(tuple);
@@ -28,4 +28,5 @@ public:
 	
 private:
 	std::vector<vector<int>> tuples;
+	int type; // 1 for rotate // 2 for reflect
 };

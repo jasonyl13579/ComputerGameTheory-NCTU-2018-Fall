@@ -86,7 +86,7 @@ protected:
 		for (size_t i=0; i<patterns.size(); i++){
 			net.emplace_back(pow(16, patterns[i].size()));
 		}
-		cout << net.size();
+		//std::cout << net[0].size() << std::endl;
 	}
 	virtual void load_weights(const std::string& path) {
 		std::ifstream in(path, std::ios::in | std::ios::binary);
@@ -119,7 +119,7 @@ protected:
  */
 class learning_agent : public agent {
 public:
-	learning_agent(const std::string& args = "") : agent(args), alpha(0.1f) {
+	learning_agent(const std::string& args = "") : agent(args), alpha(0.05f) {
 		if (meta.find("alpha") != meta.end())
 			alpha = float(meta["alpha"]);
 	}
@@ -194,24 +194,49 @@ private:
 class player : public weight_agent {
 public:
 	player(const std::string& args = "") : weight_agent("name=TD role=player " + args),
-		opcode({ 0, 1, 2, 3 }) {}
+		opcode({ 0, 1, 2, 3 }), previous({}), previous_value(0) {}
 
 	virtual action take_action(const board& before) {
 		//std::shuffle(opcode.begin(), opcode.end(), engine);
+		/*for (int op : opcode) {
+			board after = board(before).slide_with_board(op);
+			cout << after.info().modify;
+			if (after.info().modify) return action::slide(op);
+		}
+		return action();*/
+		
 		int max_idx = 0;
-		board::reward max_reward = -1;
+		int max_reward = -1;
+		int hold_value = 0;
+		board hold;
 		for (int op : opcode) {
-			board::reward reward = board(before).slide(op);
-			if (reward > max_reward){
-				max_reward = reward;
+			board after = board(before).slide_with_board(op);
+			if (after.info().modify == -1) continue;
+			//std::cout << "test" << std::endl;
+			//std::cout << net[0].size() << std::endl;
+			//std::cout << patterns.size() << std::endl;
+			int value = after.evaluation(patterns, net);
+			//std::cout << value;
+			if (after.info().rewards + value > max_reward){
+				hold_value = value;
+				hold = after;
+				max_reward = after.info().rewards + value;
 				max_idx = op;
 			}
-			//if (reward != -1) return action::slide(op);
 		}
-		if(max_reward != -1) return action::slide(max_idx);
-		return action();
+		if(max_reward != -1) {
+			if (previous.info().modify != -1) previous.upgrade_weight( previous_value, max_reward, net, patterns, alpha);
+			previous = hold;
+			previous_value = hold_value;
+			return action::slide(max_idx);
+		}else{
+			previous.upgrade_weight( previous_value, -1, net, patterns, alpha);
+			return action();
+		}
 	}
 
 private:
 	std::array<int, 4> opcode;
+	board previous;
+	int previous_value;
 };

@@ -5,8 +5,10 @@
 #include <map>
 #include <type_traits>
 #include <algorithm>
+#include <math.h>
 #include "board.h"
 #include "action.h"
+#include "pattern.h"
 #include "weight.h"
 #include <fstream>
 class agent {
@@ -59,11 +61,15 @@ protected:
  */
 class weight_agent : public agent {
 public:
-	weight_agent(const std::string& args = "") : agent(args) {
+	weight_agent(const std::string& args = "") : agent(args), alpha(0.1f), patterns(initial_state()) {
 		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
 			init_weights(meta["init"]);
+		else
+			init_weights("simple");
 		if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
 			load_weights(meta["load"]);
+		if (meta.find("alpha") != meta.end())
+			alpha = float(meta["alpha"]);
 	}
 	virtual ~weight_agent() {
 		if (meta.find("save") != meta.end()) // pass save=... to save to a specific file
@@ -72,9 +78,15 @@ public:
 
 protected:
 	virtual void init_weights(const std::string& info) {
-		net.emplace_back(65536); // create an empty weight table with size 65536
-		net.emplace_back(65536); // create an empty weight table with size 65536
+		//net.emplace_back(65536); // create an empty weight table with size 65536
+		//net.emplace_back(65536); // create an empty weight table with size 65536
 		// now net.size() == 2; net[0].size() == 65536; net[1].size() == 65536
+		pattern p(info);
+		patterns = p;
+		for (size_t i=0; i<patterns.size(); i++){
+			net.emplace_back(pow(16, patterns[i].size()));
+		}
+		cout << net.size();
 	}
 	virtual void load_weights(const std::string& path) {
 		std::ifstream in(path, std::ios::in | std::ios::binary);
@@ -93,9 +105,13 @@ protected:
 		for (weight& w : net) out << w;
 		out.close();
 	}
-
+	static pattern initial_state() {
+		return {};
+	}
 protected:
 	std::vector<weight> net;
+	float alpha;
+	pattern patterns;
 };
 
 /**
@@ -129,7 +145,8 @@ public:
 	virtual action take_action(const board& after) {
 		//std::cout << after.info();
 		if (round == 0) std::shuffle(popup.begin(), popup.end(), engine);
-		switch (after.info()){
+		board::data d = after.info();
+		switch (d.previous_dir){
 				case 1: // left
 					line = {3, 7, 11, 15};
 					break;
@@ -171,20 +188,27 @@ private:
 };
 
 /**
- * dummy player
- * select a legal action randomly
+ * weight player
+ * select a legal action by TDlearning
  */
-class player : public random_agent {
+class player : public weight_agent {
 public:
-	player(const std::string& args = "") : random_agent("name=dummy role=player " + args),
+	player(const std::string& args = "") : weight_agent("name=TD role=player " + args),
 		opcode({ 0, 1, 2, 3 }) {}
 
 	virtual action take_action(const board& before) {
-		std::shuffle(opcode.begin(), opcode.end(), engine);
+		//std::shuffle(opcode.begin(), opcode.end(), engine);
+		int max_idx = 0;
+		board::reward max_reward = -1;
 		for (int op : opcode) {
 			board::reward reward = board(before).slide(op);
-			if (reward != -1) return action::slide(op);
+			if (reward > max_reward){
+				max_reward = reward;
+				max_idx = op;
+			}
+			//if (reward != -1) return action::slide(op);
 		}
+		if(max_reward != -1) return action::slide(max_idx);
 		return action();
 	}
 

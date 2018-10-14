@@ -19,12 +19,21 @@ public:
 	typedef uint32_t cell;
 	typedef std::array<cell, 4> row;
 	typedef std::array<row, 4> grid;
-	typedef uint64_t data;
+	//typedef uint64_t data;
 	typedef int reward;
-
+	struct data {    
+		int previous_dir; 
+		int space;
+	};    
 public:
-	board() : tile(), attr(0), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288 }) {}
-	board(const grid& b, data v = 0) : tile(b), attr(v), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288}) {}
+	board() : tile(), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288 }) {
+		attr.previous_dir = 0;
+		attr.space = 16;
+	}
+	board(const grid& b, data v) : tile(b), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288}) {
+		attr.previous_dir = v.previous_dir;
+		attr.space = v.space;
+	}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
 
@@ -56,7 +65,8 @@ public:
 		if (pos >= 16) return -1;
 		if (tile != 1 && tile != 2 && tile != 3) return -1;
 		operator()(pos) = tile;
-		attr = 0;
+		attr.previous_dir = 0;
+		attr.space --;
 		return 0;
 	}
 
@@ -75,7 +85,7 @@ public:
 	}
 
 	reward slide_left() {
-		attr = 1; 
+		attr.previous_dir = 1; 
 		board prev = *this;
 		reward score = 0;
 		for (int r = 0; r < 4; r++) {
@@ -90,10 +100,12 @@ public:
 					row[c] = 3;
 					row[c+1] = 0;
 					score += 3;
+					attr.space --;
 				} else if (row[c] == row[c+1] && row[c] != 1 && row[c] != 2){
 					row[c]++;
 					score += (pow(3,row[c]-2));
 					row[c+1] = 0;
+					attr.space --;
 				}	
 			}
 		}
@@ -104,21 +116,21 @@ public:
 		reflect_horizontal();
 		reward score = slide_left();
 		reflect_horizontal();
-		attr = 2; 
+		attr.previous_dir = 2; 
 		return score;
 	}
 	reward slide_up() {
 		rotate_right();
 		reward score = slide_right();
 		rotate_left();
-		attr = 3; 
+		attr.previous_dir = 3; 
 		return score;
 	}
 	reward slide_down() {
 		rotate_right();
 		reward score = slide_left();
 		rotate_left();
-		attr = 4; 
+		attr.previous_dir = 4; 
 		return score;
 	}
 

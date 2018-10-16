@@ -32,7 +32,7 @@ public:
 	board() : tile(), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288 }) {
 		attr.previous_dir = 0;
 		attr.modify = -1;
-		attr.rewards = -1;
+		attr.rewards = 0;
 	}
 	board(const grid& b, data v) : tile(b), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288}) {
 		attr.previous_dir = v.previous_dir;

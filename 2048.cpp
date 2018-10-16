@@ -59,11 +59,14 @@ int main(int argc, const char* argv[]) {
 	rndenv evil(evil_args);
 
 	while (!stat.is_finished()) {
+		if ( stat.get_count()% 10000 == 0)std::cout << "round:" << stat.get_count() <<std::endl;
+		
 		play.open_episode("~:" + evil.name());
 		evil.open_episode(play.name() + ":~");
 
 		stat.open_episode(play.name() + ":" + evil.name());
 		episode& game = stat.back();
+		
 		//evil.reset();
 		while (true) {
 			agent& who = game.take_turns(play, evil);
@@ -74,11 +77,11 @@ int main(int argc, const char* argv[]) {
 		}
 		
 		agent& win = game.last_turns(play, evil);
-		//stat.close_episode(win.name());
+		stat.close_episode(win.name());
 
 		play.close_episode(win.name());
 		evil.close_episode(win.name());
-		stat.close_episode(win.name());
+		//stat.close_episode(win.name());
 	}
 
 	if (summary) {

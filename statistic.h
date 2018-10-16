@@ -138,7 +138,8 @@ public:
 		stat.count = stat.data.size();
 		return in;
 	}
-
+	
+	size_t get_count() {return count;}
 private:
 	size_t total;
 	size_t block;

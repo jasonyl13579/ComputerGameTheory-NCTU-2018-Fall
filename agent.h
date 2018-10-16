@@ -206,16 +206,13 @@ public:
 		return action();*/
 		
 		int max_idx = 0;
-		int max_reward = -1;
-		int hold_value = 0;
+		float max_reward = -1;
+		float hold_value = 0;
 		board hold;
 		for (int op : opcode) {
 			board after = board(before).slide_with_board(op);
 			if (after.info().modify == -1) continue;
-			//std::cout << "test" << std::endl;
-			//std::cout << net[0].size() << std::endl;
-			//std::cout << patterns.size() << std::endl;
-			int value = after.evaluation(patterns, net);
+			float value = after.evaluation(patterns, net);
 			//std::cout << value;
 			if (after.info().rewards + value > max_reward){
 				hold_value = value;
@@ -238,5 +235,5 @@ public:
 private:
 	std::array<int, 4> opcode;
 	board previous;
-	int previous_value;
+	float previous_value;
 };

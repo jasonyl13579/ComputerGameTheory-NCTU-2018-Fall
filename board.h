@@ -203,10 +203,12 @@ public:
 				result += net[i][idx];
 			}
 		}
+		//std::cout << result << "\n";
 		return result;
 	}
 	
-	void upgrade_weight( float previous_value, float current_value, std::vector<weight>& net, pattern& patterns,float alpha){
+	void upgrade_weight(float current_value, std::vector<weight>& net, pattern& patterns,float alpha){
+		float previous_value = evaluation(patterns, net);
 		for (int rotate=0; rotate<4; rotate++){
 			rotate_right();
 			for (size_t i=0; i<patterns.size(); i++){

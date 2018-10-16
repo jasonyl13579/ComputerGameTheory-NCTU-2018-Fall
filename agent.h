@@ -64,8 +64,10 @@ public:
 	weight_agent(const std::string& args = "") : agent(args), alpha(0.1f), patterns(initial_state()) {
 		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
 			init_weights(meta["init"]);
-		else
+		else{
 			init_weights("simple");
+			alpha = 0.003125f;
+		}
 		if (meta.find("load") != meta.end()) // pass load=... to load from a specific file
 			load_weights(meta["load"]);
 		if (meta.find("alpha") != meta.end())
@@ -194,20 +196,12 @@ private:
 class player : public weight_agent {
 public:
 	player(const std::string& args = "") : weight_agent("name=TD role=player " + args),
-		opcode({ 0, 1, 2, 3 }), previous({}), previous_value(0) {}
+		opcode({ 0, 1, 2, 3 }) {}
 
 	virtual action take_action(const board& before) {
-		//std::shuffle(opcode.begin(), opcode.end(), engine);
-		/*for (int op : opcode) {
-			board after = board(before).slide_with_board(op);
-			cout << after.info().modify;
-			if (after.info().modify) return action::slide(op);
-		}
-		return action();*/
 		
 		int max_idx = 0;
 		float max_reward = -1;
-		float hold_value = 0;
 		board hold;
 		for (int op : opcode) {
 			board after = board(before).slide_with_board(op);
@@ -215,13 +209,17 @@ public:
 			float value = after.evaluation(patterns, net);
 			//std::cout << value;
 			if (after.info().rewards + value > max_reward){
-				hold_value = value;
 				hold = after;
 				max_reward = after.info().rewards + value;
 				max_idx = op;
 			}
 		}
-		if(max_reward != -1) {
+		if (max_reward != -1) {
+			states.push_back(hold);
+			return action::slide(max_idx);
+		}
+		else return action();
+		/*if(max_reward != -1) {
 			if (previous.info().modify != -1) previous.upgrade_weight( previous_value, max_reward, net, patterns, alpha);
 			previous = hold;
 			previous_value = hold_value;
@@ -229,11 +227,34 @@ public:
 		}else{
 			previous.upgrade_weight( previous_value, -1, net, patterns, alpha);
 			return action();
-		}
+		}*/
 	}
-
+	
+	void close_episode(const std::string& flag = "") {
+		backward_training();
+		//forward_training();
+	}
+	void backward_training(){
+		board before_state = states.back();
+		board after_state = {};
+		before_state.upgrade_weight(-1, net, patterns, alpha);
+		states.pop_back();
+		int count = 0;
+		while (!states.empty()){
+			count++;
+			after_state = before_state;
+			before_state = states.back();
+			float current_value = after_state.evaluation(patterns, net) + after_state.info().rewards;
+			before_state.upgrade_weight( current_value, net, patterns, alpha);
+			states.pop_back();
+		}	
+		//std::cout << count << "\n";
+	}
+	void forward_training(){
+		return;
+	}
 private:
 	std::array<int, 4> opcode;
-	board previous;
-	float previous_value;
+	std::vector<board> states;
+	//float previous_value;
 };

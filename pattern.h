@@ -9,6 +9,7 @@ class pattern {
 public:
 	pattern(const std::string& info = "simple") : type(1){
 		if ( info == "simple"){
+			type = 1;
 			std::array<int, 4> tupleArray = {0, 1, 2, 3}; 
 			vector<int> tuple;
 			for (int i=0; i<2; i++){
@@ -17,6 +18,22 @@ public:
 				tuples.emplace_back(tuple);
 			}		
 		}
+		if ( info == "enhance"){
+			type = 2;
+			std::array<int, 6> tupleArray = {0, 1, 2, 3, 4, 5}; 
+			vector<int> tuple;
+			tuple.assign(tupleArray.begin(), tupleArray.end()); 
+			tuples.emplace_back(tuple);
+			tupleArray = {4, 5, 6, 7, 8, 9};
+			tuple.assign(tupleArray.begin(), tupleArray.end()); 
+			tuples.emplace_back(tuple);
+			tupleArray = {5, 6, 7, 9, 10, 11};
+			tuple.assign(tupleArray.begin(), tupleArray.end()); 
+			tuples.emplace_back(tuple);
+			tupleArray = {9, 10, 11, 13, 14, 15};
+			tuple.assign(tupleArray.begin(), tupleArray.end()); 
+			tuples.emplace_back(tuple);
+		}
 	}
 	pattern(const pattern& f) = default;
 
@@ -24,9 +41,9 @@ public:
 	vector<int> & operator[] (size_t i) { return tuples[i]; }
 	const vector<int> & operator[] (size_t i) const { return tuples[i]; }
 	size_t size() const { return tuples.size(); }
-	
+	int get_type(){return type;}
 	
 private:
 	std::vector<vector<int>> tuples;
-	int type; // 1 for rotate // 2 for reflect
+	int type; // 1 for rotate // 2 for reflect and rotate
 };

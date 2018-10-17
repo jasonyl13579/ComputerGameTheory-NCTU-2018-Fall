@@ -119,7 +119,7 @@ public:
 					score += 3;				
 				} else if (row[c] == row[c+1] && row[c] != 1 && row[c] != 2){
 					row[c]++;
-					score += (pow(3,row[c]-2));
+					score += ((pow(3,row[c]-2)) - 2*(pow(3,row[c]-3)));
 					row[c+1] = 0;
 				}	
 			}
@@ -190,17 +190,23 @@ public:
 	void rotate_right() { transpose(); reflect_horizontal(); } // clockwise
 	void rotate_left() { transpose(); reflect_vertical(); } // counterclockwise
 	void reverse() { reflect_horizontal(); reflect_vertical(); }
-	
+	void reflect_by_index(int i){
+		if (i%2 == 1) reflect_horizontal();
+		else reflect_vertical(); 
+	}
 	float evaluation(pattern& patterns, std::vector<weight>& net){
 		float result = 0;
 		//std::cout << "pattern:" << patterns.size() << std::endl;
 		for (int rotate=0; rotate<4; rotate++){
 			rotate_right();
 			for (size_t i=0; i<patterns.size(); i++){
-				int idx = 0;
-				for (size_t j=0; j<patterns[i].size(); j++) idx = idx * 16 + get_index(patterns[i][j]);
-				//std::cout << idx << std::endl;
-				result += net[i][idx];
+				//std::cout << calculate_index(i, patterns) << std::endl;
+				result += net[i][calculate_index(i, patterns)];
+				if (patterns.get_type() == 2){
+					reflect_by_index(rotate);
+					result += net[i][calculate_index(i, patterns)];
+					reflect_by_index(rotate);
+				}
 			}
 		}
 		//std::cout << result << "\n";
@@ -212,10 +218,15 @@ public:
 		for (int rotate=0; rotate<4; rotate++){
 			rotate_right();
 			for (size_t i=0; i<patterns.size(); i++){
-				int idx = 0;
-				for (size_t j=0; j<patterns[i].size(); j++) idx = idx * 16 + get_index(patterns[i][j]);
-				if (current_value == -1) net[i][idx] = 0;
-				else net[i][idx] += alpha * (current_value - previous_value);
+				if (current_value == -1) net[i][calculate_index(i, patterns)] = 0;
+				else net[i][calculate_index(i, patterns)] += alpha * (current_value - previous_value);
+				if (patterns.get_type() == 2){
+					reflect_by_index(rotate);
+					if (current_value == -1) net[i][calculate_index(i, patterns)] = 0;
+					else net[i][calculate_index(i, patterns)] += alpha * (current_value - previous_value);
+					reflect_by_index(rotate);
+				}
+				
 			}
 		}
 		return;
@@ -226,6 +237,11 @@ public:
 	}
 	int get_index(int idx){
 		return tile[idx / 4][idx % 4];
+	}
+	int calculate_index(int i, pattern& patterns){
+		int idx = 0;
+		for (size_t j=0; j<patterns[i].size(); j++) idx = idx * 16 + get_index(patterns[i][j]);
+		return idx;
 	}
 	friend std::ostream& operator <<(std::ostream& out, const board& b) {
 		out << "+------------------------+" << std::endl;

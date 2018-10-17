@@ -84,11 +84,14 @@ protected:
 		//net.emplace_back(65536); // create an empty weight table with size 65536
 		// now net.size() == 2; net[0].size() == 65536; net[1].size() == 65536
 		pattern p(info);
+		std::cout << info;
 		patterns = p;
 		for (size_t i=0; i<patterns.size(); i++){
 			net.emplace_back(pow(16, patterns[i].size()));
 		}
-		//std::cout << net[0].size() << std::endl;
+		//std::cout << patterns[1][0] << std::endl;
+		//std::cout << patterns[2][0] << std::endl;
+		//std::cout << net[3].size() << std::endl;
 	}
 	virtual void load_weights(const std::string& path) {
 		std::ifstream in(path, std::ios::in | std::ios::binary);
@@ -238,7 +241,6 @@ public:
 	void close_episode(const std::string& flag = "") {
 		
 		backward_training();
-		
 		//std::cout << states.size();
 		states.clear();
 		//forward_training();
@@ -248,8 +250,10 @@ public:
 		board after_state = {};
 		before_state.upgrade_weight(-1, net, patterns, alpha);
 		states.pop_back();
+		//if (after_state == before_state) std::cout << "fuck\n";
 		int count = 0;
 		while (!states.empty()){
+			//cout << before_state;
 			count++;
 			after_state = before_state;
 			before_state = states.back();

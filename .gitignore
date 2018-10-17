@@ -5,6 +5,7 @@
 *.pdf
 *.jpg
 *.txt
+*.bin
 
 # Prerequisites
 *.d

@@ -18,6 +18,21 @@ public:
 				tuples.emplace_back(tuple);
 			}		
 		}
+		if ( info == "brute"){
+			type = 0;
+			std::array<int, 4> tupleArray = {0, 1, 2, 3}; 
+			vector<int> tuple;
+			for (int i=0; i<4; i++){
+				tupleArray = {0 + 4*i, 1 + 4*i, 2 + 4*i, 3 + 4*i};
+				tuple.assign(tupleArray.begin(), tupleArray.end()); 
+				tuples.emplace_back(tuple);
+			}
+			for (int i=0; i<4; i++){
+				tupleArray = {0 + 4*i, 4 + 4*i, 8 + 4*i, 12 + 4*i};
+				tuple.assign(tupleArray.begin(), tupleArray.end()); 
+				tuples.emplace_back(tuple);
+			}
+		}
 		if ( info == "enhance"){
 			type = 2;
 			std::array<int, 6> tupleArray = {0, 1, 2, 3, 4, 5}; 

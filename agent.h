@@ -61,7 +61,7 @@ protected:
  */
 class weight_agent : public agent {
 public:
-	weight_agent(const std::string& args = "") : agent(args), alpha(0.1f), patterns(initial_state()) {
+	weight_agent(const std::string& args = "") : agent(args), alpha(0.003125f), patterns(initial_state()) {
 		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
 			init_weights(meta["init"]);
 		else{
@@ -84,8 +84,9 @@ protected:
 		//net.emplace_back(65536); // create an empty weight table with size 65536
 		// now net.size() == 2; net[0].size() == 65536; net[1].size() == 65536
 		pattern p(info);
-		std::cout << info;
+		std::cout << "player:" + info << std::endl;
 		patterns = p;
+		if (info == "enhance") alpha = 0.0005208;
 		for (size_t i=0; i<patterns.size(); i++){
 			net.emplace_back(pow(16, patterns[i].size()));
 		}

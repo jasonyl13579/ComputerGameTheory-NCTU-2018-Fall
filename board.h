@@ -191,14 +191,13 @@ public:
 	void rotate_left() { transpose(); reflect_vertical(); } // counterclockwise
 	void reverse() { reflect_horizontal(); reflect_vertical(); }
 	void reflect_by_index(int i){
-		if (i%2 == 1) reflect_horizontal();
+		if (i%2 == 0) reflect_horizontal();
 		else reflect_vertical(); 
 	}
 	float evaluation(pattern& patterns, std::vector<weight>& net){
 		float result = 0;
 		//std::cout << "pattern:" << patterns.size() << std::endl;
-		for (int rotate=0; rotate<4; rotate++){
-			rotate_right();
+		for (int rotate=0; rotate<4; rotate++){		
 			for (size_t i=0; i<patterns.size(); i++){
 				//std::cout << calculate_index(i, patterns) << std::endl;
 				result += net[i][calculate_index(i, patterns)];
@@ -208,6 +207,8 @@ public:
 					reflect_by_index(rotate);
 				}
 			}
+			if (patterns.get_type() < 0) break;
+			rotate_right();
 		}
 		//std::cout << result << "\n";
 		return result;
@@ -215,8 +216,7 @@ public:
 	
 	void upgrade_weight(float current_value, std::vector<weight>& net, pattern& patterns,float alpha){
 		float previous_value = evaluation(patterns, net);
-		for (int rotate=0; rotate<4; rotate++){
-			rotate_right();
+		for (int rotate=0; rotate<4; rotate++){			
 			for (size_t i=0; i<patterns.size(); i++){
 				if (current_value == -1) net[i][calculate_index(i, patterns)] = 0;
 				else net[i][calculate_index(i, patterns)] += alpha * (current_value - previous_value);
@@ -228,6 +228,8 @@ public:
 				}
 				
 			}
+			if (patterns.get_type() < 0) break;
+			rotate_right();
 		}
 		return;
 	}

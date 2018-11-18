@@ -209,6 +209,13 @@ public:
 	int get_index(int idx){
 		return tile[idx / 3][idx % 3];
 	}
+	float get_score(){
+		float score = 0;
+		for (int i=0;i<6;i++){	
+			if (get_index(i) > 2) score += pow(3, get_index(i)-2);
+		}	
+		return score;
+	}
 	friend std::ostream& operator <<(std::ostream& out, const board& b) {
 		for (int i = 0; i < 6; i++) {
 			out << std::setw(std::min(i, 1)) << "" << (b.get_value(b(i)));
@@ -220,7 +227,7 @@ public:
 			while (!std::isdigit(in.peek()) && in.good()) in.ignore(1);
 			in >> b(i);
 			if (b(i) != 0 && b(i) != 1 && b(i) != 2)
-				b(i) = std::log2(b(i)/3)+ 3;
+				b(i) = log2(b(i)/3)+ 3;
 		}
 		return in;
 	}

@@ -35,11 +35,11 @@ int main(int argc, const char* argv[]) {
 	state_hint hint(state);
 	
 	std::cout << std::setprecision(precision);
-	while (std::cin >> type >> state >> hint) {
+	/*while (std::cin >> type >> state >> hint) {
 		auto value = solve.solve(state, type);
 		std::cout << type << " " << state << " " << hint;
 		std::cout << " = " << value << std::endl;
-	}
+	}*/
 
 	return 0;
 }

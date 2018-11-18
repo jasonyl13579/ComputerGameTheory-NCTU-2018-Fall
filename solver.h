@@ -67,26 +67,105 @@ public:
 public:
 	class answer {
 	public:
-		answer(value_t min = 0.0/0.0, value_t avg = 0.0/0.0, value_t max = 0.0/0.0) : min(min), avg(avg), max(max) {}
+		answer(value_t min = -1, value_t avg = -1, value_t max = -1) : min(min), avg(avg), max(max) {}
 	    friend std::ostream& operator <<(std::ostream& out, const answer& ans) {
 	    	return !std::isnan(ans.avg) ? (out << ans.min << " " << ans.avg << " " << ans.max) : (out << "-1") << std::endl;
 		}
+		answer maximum(answer a, answer b){
+			return {std::max(a.min, b.min), std::max(a.avg, b.avg), std::max(a.max, b.max)};
+		}
+		bool operator !() { return (min == -1) && (avg == -1) && (max == -1); }
+		bool operator ==(const answer& a) const { return (min == a.min) && (avg == a.avg) && (max == a.max);}
+		bool operator !=(const answer& a) const { return !(*this == a); }
 	public:
-		const value_t min, avg, max;
+		value_t min, avg, max;
 	};
 
 public:
-	solver(const std::string& args) {
+	solver(const std::string& args):opcode( {0, 1, 2, 3} ){ 
 		// TODO: explore the tree and save the result
 		board state;
-		action::place(0, 1).apply(state);
+		/*action::place(0, 1).apply(state);
 		action::place(3, 1).apply(state);
 		std::cout << state << std::endl;
 		action::slide(2).apply(state);
-		std::cout << state;
+		std::cout << state;*/
+		std::vector<int> bag;
+		bag.push_back(2);bag.push_back(3);
+		state.hint(1);
+		expectiminimax(state, state_type(state_type::after), bag);
 //		std::cout << "feel free to display some messages..." << std::endl;
 	}
-
+	answer expectiminimax(board current, state_type t, std::vector<int> bag){
+		int valid_num = 0;
+		answer a;
+		std::cout << t << " " << current << " " << current.hint() << " dir:" << current.last_dir()<< std::endl;
+		if (t.is_before()){
+			
+			if(!!tableB[index(current)][current.hint()]) return tableB[index(current)][current.hint()];
+			for (int op : opcode) {
+				board after = board(current).slide_with_board(op);
+				if (after == board()) continue;
+				answer score_a = expectiminimax(after, state_type(state_type::after), bag);
+				a = a.maximum(a, score_a);
+				valid_num ++;
+			}
+			if (valid_num == 0) {
+				float score = current.get_score(); 
+				tableB[index(current)][current.hint()] = { score, score, score };
+				return { score, score, score };
+			}else{
+				return a;
+			}
+		}else if (t.is_after()){
+			std::cout << "hi:" << std::endl ;
+		//	if(!!tableA[index(current)][current.hint()][current.last_dir()-1]) return tableA[index(current)][current.hint()][current.last_dir()-1];
+			std::array<int, 6> line;
+			switch (current.last_dir()){
+					case 1: // left
+						line = {2, 5, -1, -1, -1, -1};
+						break;
+					case 2: // right
+						line = {0, 3, -1, -1, -1, -1};
+						break;
+					case 3: // up
+						line = {3, 4, 5, -1, -1, -1};
+						break;
+					case 4: // down
+						line = {0, 1, 2, -1, -1, -1};
+						break;
+					case 0: // place
+					default:
+						line = {0, 1, 2, 3, 4, 5};
+						break;
+			}
+			float min = 100000, avg = 0, max = 0;
+			for (int pos : line) {	
+				if (pos == -1 || current(pos) != 0) continue;
+				board after(current);
+				action::place(pos, current.hint()).apply(after);
+				for (size_t i=0 ; i<bag.size() ; i++){
+					std::vector<int> after_bag = bag;
+					after.hint(after_bag[i]);
+					after_bag.erase(after_bag.begin()+i);
+					if (after_bag.empty()){
+						after_bag.push_back(1);after_bag.push_back(2);after_bag.push_back(3);
+					}
+					answer score_b = expectiminimax(after, state_type(state_type::before), after_bag);
+					if (score_b.min < min) min = score_b.min; 
+					if (score_b.max > max) max = score_b.max; 
+					avg += score_b.avg;
+					valid_num ++;					
+				}
+			} 
+			avg /= valid_num;
+			std::cout << min << avg << max;
+			tableA[index(current)][current.hint()][current.last_dir()-1] = {min, avg, max};
+			return {min, avg, max};
+		}else{
+			return -1;
+		}
+	}
 	answer solve(const board& state, state_type type = state_type::before) {
 		// TODO: find the answer in the lookup table and return it
 		//       do NOT recalculate the tree at here
@@ -100,12 +179,17 @@ public:
 		return {};
 	}
 	
-	int index(int t1, int t2, int t3, int t4, int t5, int t6){
+	int index(board b){
+		int t1 = b(0), t2 = b(1), t3 = b(2), t4 = b(3), t5 = b(4), t6 = b(5);
 		return ( t1 + 6*t2 + 36*t3 + pow(6, 3)*t4 + pow(6, 4)*t5 + pow(6, 5)*t6);
 	}
 private:
 	// TODO: place your transposition table here
-	// int tableA[type][tile 0][tile 1] ... [tile 5][hint][last action][min];
-	//int tableA[2][46656][3][4][3];
-	//int tableB[2][46656][3][3];
+	// int tableA[tile 0][tile 1] ... [tile 5][hint][last action];
+	static answer tableA[46656][3][4];
+	static answer tableB[46656][3];
+	std::array<int, 4> opcode;
 };
+
+solver::answer solver::tableA[46656][3][4];
+solver::answer solver::tableB[46656][3];

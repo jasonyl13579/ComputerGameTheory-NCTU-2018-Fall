@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include "board.h"
+#include "action.h"
 #include <numeric>
 
 class state_type {
@@ -40,14 +41,14 @@ class state_hint {
 public:
 	state_hint(const board& state) : state(const_cast<board&>(state)) {}
 
-	char type() const { return state.info() ? state.info() + '0' : 'x'; }
-	operator board::cell() const { return state.info(); }
+	char type() const { return state.hint() ? state.hint() + '0' : 'x'; }
+	operator board::cell() const { return state.hint(); }
 
 public:
 	friend std::istream& operator >>(std::istream& in, state_hint& hint) {
 		while (in.peek() != '+' && in.good()) in.ignore(1);
 		char v; in.ignore(1) >> v;
-		hint.state.info(v != 'x' ? v - '0' : 0);
+		hint.state.hint(v != 'x' ? v - '0' : 0);
 		return in;
 	}
 	friend std::ostream& operator <<(std::ostream& out, const state_hint& hint) {
@@ -77,7 +78,12 @@ public:
 public:
 	solver(const std::string& args) {
 		// TODO: explore the tree and save the result
-
+		board state;
+		action::place(0, 1).apply(state);
+		action::place(3, 1).apply(state);
+		std::cout << state << std::endl;
+		action::slide(2).apply(state);
+		std::cout << state;
 //		std::cout << "feel free to display some messages..." << std::endl;
 	}
 
@@ -93,7 +99,13 @@ public:
 		// for an illegal state, simply return {}
 		return {};
 	}
-
+	
+	int index(int t1, int t2, int t3, int t4, int t5, int t6){
+		return ( t1 + 6*t2 + 36*t3 + pow(6, 3)*t4 + pow(6, 4)*t5 + pow(6, 5)*t6);
+	}
 private:
 	// TODO: place your transposition table here
+	// int tableA[type][tile 0][tile 1] ... [tile 5][hint][last action][min];
+	//int tableA[2][46656][3][4][3];
+	//int tableB[2][46656][3][3];
 };

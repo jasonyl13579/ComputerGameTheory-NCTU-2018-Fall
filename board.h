@@ -3,40 +3,42 @@
 #include <iostream>
 #include <iomanip>
 #include <math.h> 
-#include "pattern.h"
-#include "weight.h"
 
 /**
- * array-based board for 2048
+ * array-based board for threes
  *
  * index (1-d form):
- *  (0)  (1)  (2)  (3)
- *  (4)  (5)  (6)  (7)
- *  (8)  (9) (10) (11)
- * (12) (13) (14) (15)
+ *  (0)  (1)  (2)  
+ *  (3)  (4)  (5)  
  *
  */
 class board {
 public:
 	typedef uint32_t cell;
-	typedef std::array<cell, 4> row;
-	typedef std::array<row, 4> grid;
+	typedef std::array<cell, 3> row;
+	typedef std::array<row, 3> grid;
 	//typedef uint64_t data;
 	typedef int reward;
 	struct data {    
 		int previous_dir; 
 		int modify;
 		reward rewards;
+		int hint;
 	};    
 public:
 	board() : tile(), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288 }) {
+		tile[2][0] = 100;
+		tile[2][1] = 100;
+		tile[2][2] = 100;
 		attr.previous_dir = 0;
 		attr.modify = -1;
 		attr.rewards = 0;
+		attr.hint = 0;
 	}
 	board(const grid& b, data v) : tile(b), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288}) {
 		attr.previous_dir = v.previous_dir;
 		attr.modify = v.modify;
+		attr.hint = v.hint;
 	}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
@@ -45,9 +47,13 @@ public:
 	operator const grid&() const { return tile; }
 	row& operator [](unsigned i) { return tile[i]; }
 	const row& operator [](unsigned i) const { return tile[i]; }
-	cell& operator ()(unsigned i) { return tile[i / 4][i % 4]; }
-	const cell& operator ()(unsigned i) const { return tile[i / 4][i % 4]; }
+	cell& operator ()(unsigned i) { return tile[i / 3][i % 3]; }
+	const cell& operator ()(unsigned i) const { return tile[i / 3][i % 3]; }
 
+	int last_dir() const { return attr.previous_dir; }
+	void last_dir(int d) { attr.previous_dir = d; }
+	int hint() const { return attr.hint; }
+	void hint(int h) { attr.hint = h; }
 	data info() const { return attr; }
 	data info(data dat) { data old = attr; attr = dat; return old; }
 
@@ -66,7 +72,7 @@ public:
 	 * return 0 if the action is valid, or -1 if not
 	 */
 	reward place(unsigned pos, cell tile) {
-		if (pos >= 16) return -1;
+		if (pos >= 6) return -1;
 		if (tile != 1 && tile != 2 && tile != 3) return -1;
 		operator()(pos) = tile;
 		attr.previous_dir = 0;
@@ -105,19 +111,20 @@ public:
 		attr.previous_dir = 1; 
 		board prev = *this;
 		reward score = 0;
-		for (int r = 0; r < 4; r++) {
+		for (int r = 0; r < 3; r++) {
 			auto& row = tile[r];
 			//int hold = 0, merge = 1;
-			for (int c = 0; c < 3; c++) { //ignore fourth block
-				int tile = row[c];
-				if (tile == 0) {
+			for (int c = 0; c < 2; c++) { //ignore third block
+				if (row[c] == 100 && row[c+1] == 100) break;
+				if (row[c] == 100) continue;
+				if (row[c] == 0 && row[c+1] != 100) {
 					row[c] = row[c+1];
 					row[c+1] = 0;
 				} else if ((row[c] == 1 && row[c+1] == 2) || (row[c] == 2 && row[c+1] == 1)){
 					row[c] = 3;
 					row[c+1] = 0;
 					score += 3;				
-				} else if (row[c] == row[c+1] && row[c] != 1 && row[c] != 2){
+				} else if (row[c] == row[c+1] && row[c] != 1 && row[c] != 2 && row[c] != 100){
 					row[c]++;
 					score += ((pow(3,row[c]-2)) - 2*(pow(3,row[c]-3)));
 					row[c+1] = 0;
@@ -153,24 +160,24 @@ public:
 	}
 
 	void transpose() {
-		for (int r = 0; r < 4; r++) {
-			for (int c = r + 1; c < 4; c++) {
+		for (int r = 0; r < 3; r++) {
+			for (int c = r + 1; c < 3; c++) {
 				std::swap(tile[r][c], tile[c][r]);
 			}
 		}
 	}
 
 	void reflect_horizontal() {
-		for (int r = 0; r < 4; r++) {
-			std::swap(tile[r][0], tile[r][3]);
-			std::swap(tile[r][1], tile[r][2]);
+		for (int r = 0; r < 3; r++) {
+			std::swap(tile[r][0], tile[r][2]);
+			//std::swap(tile[r][1], tile[r][2]);
 		}
 	}
 
 	void reflect_vertical() {
-		for (int c = 0; c < 4; c++) {
-			std::swap(tile[0][c], tile[3][c]);
-			std::swap(tile[1][c], tile[2][c]);
+		for (int c = 0; c < 3; c++) {
+			std::swap(tile[0][c], tile[2][c]);
+			//std::swap(tile[1][c], tile[2][c]);
 		}
 	}
 
@@ -194,68 +201,29 @@ public:
 		if (i%2 == 0) reflect_horizontal();
 		else reflect_vertical(); 
 	}
-	float evaluation(pattern& patterns, std::vector<weight>& net){
-		float result = 0;
-		//std::cout << "pattern:" << patterns.size() << std::endl;
-		for (int rotate=0; rotate<4; rotate++){		
-			for (size_t i=0; i<patterns.size(); i++){
-				//std::cout << calculate_index(i, patterns) << std::endl;
-				result += net[i][calculate_index(i, patterns)];
-				if (patterns.get_type() == 2){
-					reflect_by_index(rotate);
-					result += net[i][calculate_index(i, patterns)];
-					reflect_by_index(rotate);
-				}
-			}
-			if (patterns.get_type() < 0) break;
-			rotate_right();
-		}
-		//std::cout << result << "\n";
-		return result;
-	}
 	
-	void upgrade_weight(float current_value, std::vector<weight>& net, pattern& patterns,float alpha){
-		float previous_value = evaluation(patterns, net);
-		for (int rotate=0; rotate<4; rotate++){			
-			for (size_t i=0; i<patterns.size(); i++){
-				if (current_value == -1) net[i][calculate_index(i, patterns)] = 0;
-				else net[i][calculate_index(i, patterns)] += alpha * (current_value - previous_value);
-				if (patterns.get_type() == 2){
-					reflect_by_index(rotate);
-					if (current_value == -1) net[i][calculate_index(i, patterns)] = 0;
-					else net[i][calculate_index(i, patterns)] += alpha * (current_value - previous_value);
-					reflect_by_index(rotate);
-				}
-				
-			}
-			if (patterns.get_type() < 0) break;
-			rotate_right();
-		}
-		return;
-	}
 public:
 	const int get_value (int idx)const{
 		return value[idx];
 	}
 	int get_index(int idx){
-		return tile[idx / 4][idx % 4];
-	}
-	int calculate_index(int i, pattern& patterns){
-		int idx = 0;
-		for (size_t j=0; j<patterns[i].size(); j++) idx = idx * 16 + get_index(patterns[i][j]);
-		return idx;
+		return tile[idx / 3][idx % 3];
 	}
 	friend std::ostream& operator <<(std::ostream& out, const board& b) {
-		out << "+------------------------+" << std::endl;
-		for (auto& row : b.tile) {
-			out << "|" << std::dec;
-			for (auto t : row) out << std::setw(6) << b.get_value(t);
-			out << "|" << std::endl;
+		for (int i = 0; i < 6; i++) {
+			out << std::setw(std::min(i, 1)) << "" << (b.get_value(b(i)));
 		}
-		out << "+------------------------+" << std::endl;
 		return out;
 	}
-
+	friend std::istream& operator >>(std::istream& in, board& b) {
+		for (int i = 0; i < 6; i++) {
+			while (!std::isdigit(in.peek()) && in.good()) in.ignore(1);
+			in >> b(i);
+			if (b(i) != 0 && b(i) != 1 && b(i) != 2)
+				b(i) = std::log2(b(i)/3)+ 3;
+		}
+		return in;
+	}
 private:
 	grid tile;
 	data attr;

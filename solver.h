@@ -69,7 +69,7 @@ public:
 	public:
 		answer(value_t min = -1, value_t avg = -1, value_t max = -1) : min(min), avg(avg), max(max) {}
 	    friend std::ostream& operator <<(std::ostream& out, const answer& ans) {
-	    	return !std::isnan(ans.avg) ? (out << ans.min << " " << ans.avg << " " << ans.max) : (out << "-1") << std::endl;
+	    	return ans.min != -1 ? (out << ans.min << " " << ans.avg << " " << ans.max) : (out << "-1") ;
 		}
 		answer maximum(answer a, answer b){
 			return {std::max(a.min, b.min), std::max(a.avg, b.avg), std::max(a.max, b.max)};
@@ -85,21 +85,26 @@ public:
 	solver(const std::string& args):opcode( {0, 1, 2, 3} ){ 
 		// TODO: explore the tree and save the result
 		board state;
-		/*action::place(0, 1).apply(state);
-		action::place(3, 1).apply(state);
-		std::cout << state << std::endl;
-		action::slide(2).apply(state);
-		std::cout << state;*/
 		std::vector<int> bag;
+		// init 1
 		bag.push_back(2);bag.push_back(3);
 		state.hint(1);
 		expectiminimax(state, state_type(state_type::after), bag);
-//		std::cout << "feel free to display some messages..." << std::endl;
+		// init 2
+		bag.erase(bag.begin());
+		bag.push_back(1);
+		state.hint(2);
+		expectiminimax(state, state_type(state_type::after), bag);
+		// init 3
+		bag.erase(bag.begin());
+		bag.push_back(2);
+		state.hint(3);
+		expectiminimax(state, state_type(state_type::after), bag);
 	}
 	answer expectiminimax(board current, state_type t, std::vector<int> bag){
 		int valid_num = 0;
 		answer a;
-		std::cout << t << " " << current << " " << current.hint() << " dir:" << current.last_dir()<< std::endl;
+		//std::cout << t << " " << current << " " << current.hint() << " dir:" << current.last_dir()<< std::endl;
 		if (t.is_before()){
 			
 			if(!!tableB[index(current)][current.hint()]) return tableB[index(current)][current.hint()];
@@ -107,7 +112,8 @@ public:
 				board after = board(current).slide_with_board(op);
 				if (after == board()) continue;
 				answer score_a = expectiminimax(after, state_type(state_type::after), bag);
-				a = a.maximum(a, score_a);
+				//a = a.maximum(a, score_a);
+				if (score_a.avg > a.avg) a = score_a;
 				valid_num ++;
 			}
 			if (valid_num == 0) {
@@ -115,11 +121,11 @@ public:
 				tableB[index(current)][current.hint()] = { score, score, score };
 				return { score, score, score };
 			}else{
+				tableB[index(current)][current.hint()] = a;
 				return a;
 			}
 		}else if (t.is_after()){
-			std::cout << "hi:" << std::endl ;
-		//	if(!!tableA[index(current)][current.hint()][current.last_dir()-1]) return tableA[index(current)][current.hint()][current.last_dir()-1];
+			if(!!tableA[index(current)][current.hint()][current.last_dir()-1]) return tableA[index(current)][current.hint()][current.last_dir()-1];
 			std::array<int, 6> line;
 			switch (current.last_dir()){
 					case 1: // left
@@ -159,7 +165,6 @@ public:
 				}
 			} 
 			avg /= valid_num;
-			std::cout << min << avg << max;
 			tableA[index(current)][current.hint()][current.last_dir()-1] = {min, avg, max};
 			return {min, avg, max};
 		}else{
@@ -171,25 +176,31 @@ public:
 		//       do NOT recalculate the tree at here
 
 		// to fetch the hint (if type == state_type::after, hint will be 0)
-//		board::cell hint = state_hint(state);
-
 		// for a legal state, return its three values.
-//		return { min, avg, max };
+		board::cell hint = state_hint(state);
+		if (type.is_after()) {
+			for (int dir : opcode){
+				if (!!tableA[index(state)][hint][dir]) return tableA[index(state)][hint][dir];
+			}
+			return {};
+		}
+		if (type.is_before()) return tableB[index(state)][hint];
+		
 		// for an illegal state, simply return {}
 		return {};
 	}
 	
 	int index(board b){
 		int t1 = b(0), t2 = b(1), t3 = b(2), t4 = b(3), t5 = b(4), t6 = b(5);
-		return ( t1 + 6*t2 + 36*t3 + pow(6, 3)*t4 + pow(6, 4)*t5 + pow(6, 5)*t6);
+		return ( t1 + 10*t2 + 100*t3 + pow(10, 3)*t4 + pow(10, 4)*t5 + pow(10, 5)*t6);
 	}
 private:
 	// TODO: place your transposition table here
 	// int tableA[tile 0][tile 1] ... [tile 5][hint][last action];
-	static answer tableA[46656][3][4];
-	static answer tableB[46656][3];
+	static answer tableA[1000000][3][4];
+	static answer tableB[1000000][3];
 	std::array<int, 4> opcode;
 };
 
-solver::answer solver::tableA[46656][3][4];
-solver::answer solver::tableB[46656][3];
+solver::answer solver::tableA[1000000][3][4];
+solver::answer solver::tableB[1000000][3];

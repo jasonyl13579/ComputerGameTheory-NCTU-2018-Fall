@@ -14,9 +14,9 @@
 #include "solver.h"
 
 int main(int argc, const char* argv[]) {
-	std::cout << "Threes-Expected-Max: ";
-	std::copy(argv, argv + argc, std::ostream_iterator<const char*>(std::cout, " "));
-	std::cout << std::endl << std::endl;
+	//std::cout << "Threes-Expected-Max: ";
+	//std::copy(argv, argv + argc, std::ostream_iterator<const char*>(std::cout, " "));
+	//std::cout << std::endl << std::endl;
 
 	std::string solve_args;
 	int precision = 10;
@@ -35,11 +35,11 @@ int main(int argc, const char* argv[]) {
 	state_hint hint(state);
 	
 	std::cout << std::setprecision(precision);
-	/*while (std::cin >> type >> state >> hint) {
+	while (std::cin >> type >> state >> hint) {
 		auto value = solve.solve(state, type);
 		std::cout << type << " " << state << " " << hint;
 		std::cout << " = " << value << std::endl;
-	}*/
+	}
 
 	return 0;
 }

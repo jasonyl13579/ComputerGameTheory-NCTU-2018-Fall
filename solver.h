@@ -4,6 +4,7 @@
 #include <cmath>
 #include "board.h"
 #include "action.h"
+#include <vector>
 #include <numeric>
 
 class state_type {

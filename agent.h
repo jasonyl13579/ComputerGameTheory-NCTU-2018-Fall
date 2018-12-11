@@ -89,7 +89,7 @@ protected:
 		patterns = p;
 		if (info == "enhance") alpha = 0.003125f;//alpha = 0.0005208;
 		for (size_t i=0; i<patterns.size(); i++){
-			net.emplace_back(pow(16, patterns[i].size()));
+			net.emplace_back(pow(16, patterns[i].size())*12); //*12 = hint
 		}
 		//std::cout << patterns[1][0] << std::endl;
 		//std::cout << patterns[2][0] << std::endl;
@@ -162,7 +162,7 @@ public:
 	virtual action take_action(const board& after) {
 		//std::cout << after.info();
 		//std::cout << popup.size() << std::endl;
-		std::cout << after;
+		//std::cout << after;
 		if (popup.size() == 0) {
 			for (int i=0 ; i<4 ; i++) {popup.push_back(1);popup.push_back(2);popup.push_back(3);}
 			std::random_shuffle ( popup.begin(), popup.end() );
@@ -249,7 +249,7 @@ public:
 		opcode({ 0, 1, 2, 3 }) {}
 
 	virtual action take_action(const board& before) {
-		
+		//before.hint(hint);
 		int max_idx = 0;
 		float max_reward = -1000000;
 		bool vaild = false;
@@ -267,6 +267,7 @@ public:
 			}
 		}
 		if (vaild) {
+			hold.hint(hint);
 			states.push_back(hold);
 			return action::slide(max_idx);
 		}

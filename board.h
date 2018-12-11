@@ -253,8 +253,9 @@ public:
 		return tile[idx / 4][idx % 4];
 	}
 	int calculate_index(int i, pattern& patterns){
-		int idx = 0;
+		int idx = attr.hint;
 		for (size_t j=0; j<patterns[i].size(); j++) idx = idx * 16 + get_index(patterns[i][j]);
+		//idx = idx * 16 + attr.hint;
 		return idx;
 	}
 	

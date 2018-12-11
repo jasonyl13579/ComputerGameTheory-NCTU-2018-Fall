@@ -11,6 +11,7 @@
 #include "pattern.h"
 #include "weight.h"
 #include <fstream>
+int hint = 0;
 class agent {
 public:
 	agent(const std::string& args = "") {
@@ -86,7 +87,7 @@ protected:
 		pattern p(info);
 		std::cout << "player:" + info << std::endl;
 		patterns = p;
-		if (info == "enhance") alpha = 0.0005208;
+		if (info == "enhance") alpha = 0.003125f;//alpha = 0.0005208;
 		for (size_t i=0; i<patterns.size(); i++){
 			net.emplace_back(pow(16, patterns[i].size()));
 		}
@@ -144,13 +145,28 @@ protected:
 class rndenv : public random_agent {
 public:
 	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args),
-		space({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),line({ 0, 1, 2, 3}), popup({1, 2, 3}),count(0){}
+		space({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),line({ 0, 1, 2, 3}),count(0){
+			for (int i=0 ; i<4 ; i++) {popup.push_back(1);popup.push_back(2);popup.push_back(3);}
+			std::random_shuffle ( popup.begin(), popup.end() );
+		}
 	virtual void open_episode(const std::string& flag = "") {
-		count = 0;		
+		count = 0;
+		bonus_tile_count = 0;
+		bonus_tile_valid = false;
+		popup.clear();
+		for (int i=0 ; i<4 ; i++) {popup.push_back(1);popup.push_back(2);popup.push_back(3);}
+		std::random_shuffle ( popup.begin(), popup.end() );
+		hint = popup.back();
+		popup.pop_back();
 	}	
 	virtual action take_action(const board& after) {
 		//std::cout << after.info();
-		if (count == 0) std::shuffle(popup.begin(), popup.end(), engine);
+		//std::cout << popup.size() << std::endl;
+		std::cout << after;
+		if (popup.size() == 0) {
+			for (int i=0 ; i<4 ; i++) {popup.push_back(1);popup.push_back(2);popup.push_back(3);}
+			std::random_shuffle ( popup.begin(), popup.end() );
+		}
 		board::data d = after.info();
 		switch (d.previous_dir){
 				case 1: // left
@@ -170,18 +186,45 @@ public:
 					std::shuffle(space.begin(), space.end(), engine);
 					for (int pos : space) {	
 						if (after(pos) != 0) continue;					
-						board::cell tile = popup[count++];
-						if (count == 3) count = 0;
-						return action::place(pos, tile);
+						board::cell tile = popup.back();
+						popup.pop_back();
+						count ++;
+						action a  = action::place(pos, hint);
+						hint = tile;
+						return a;
 					}
 					return action();
 		}	
 		std::shuffle(line.begin(), line.end(), engine);
+		if  (!bonus_tile_valid){
+			if (after.get_max_tile() >= 7) bonus_tile_valid = true;
+		}
+		
 		for (int pos : line) {	
 			if (after(pos) != 0) continue;
-			board::cell tile = popup[count++];
-			if (count == 3) count = 0;
-			return action::place(pos, tile);
+			if (bonus_tile_valid && (count/21) > bonus_tile_count){
+				int x = rand() % 21;
+				if (x == 0){
+					const int bonus_num = after.get_max_tile() - 6; // first valid tile-48 (index 7)
+					int r = rand() % bonus_num;
+					//std::array<int, bonus_num> bonus_choose;
+					//for (int i=0 ; i<bonus_num ; i++) bonus_choose.at(i) = i;
+					//int r = rand() % bonus_choose;
+					board::cell tile = r + 4; // minimum tile-6 (index 4)
+					count ++;
+					bonus_tile_count++;
+					action a  = action::place(pos, hint);
+					hint = tile;
+					return a;
+				}
+			}
+			board::cell tile = popup.back();
+			popup.pop_back();
+			count ++;
+			//if (count == 3) count = 0;
+			action a  = action::place(pos, hint);
+			hint = tile;
+			return a;
 		}
 		return action();
 	}
@@ -189,8 +232,11 @@ public:
 private:
 	std::array<int, 16> space;
 	std::array<int, 4> line;
-	std::array<int, 3> popup;
+	//std::array<int, 12> popup;
+	std::vector<int> popup;
 	int count;
+	bool bonus_tile_valid = false;
+	int bonus_tile_count = 0;
 };
 
 /**

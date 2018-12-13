@@ -163,6 +163,7 @@ public:
 		//std::cout << after.info();
 		//std::cout << popup.size() << std::endl;
 		//std::cout << after;
+		
 		if (popup.size() == 0) {
 			for (int i=0 ; i<4 ; i++) {popup.push_back(1);popup.push_back(2);popup.push_back(3);}
 			std::random_shuffle ( popup.begin(), popup.end() );
@@ -213,6 +214,7 @@ public:
 					board::cell tile = r + 4; // minimum tile-6 (index 4)
 					count ++;
 					bonus_tile_count++;
+					//std::cout << "Fuck:" << tile << std::endl;
 					action a  = action::place(pos, hint);
 					hint = tile;
 					return a;
@@ -258,6 +260,7 @@ public:
 			board after = board(before).slide_with_board(op);
 			if (after == board()) continue;
 			vaild = true;
+			after.hint(hint);
 			float value = after.evaluation(patterns, net);
 			//if (after.info().rewards + value < 0) std::cout << after.info().rewards + value << std::endl;
 			if (after.info().rewards + value > max_reward){
@@ -267,6 +270,7 @@ public:
 			}
 		}
 		if (vaild) {
+			//std::cout << hint << std::endl;
 			hold.hint(hint);
 			states.push_back(hold);
 			return action::slide(max_idx);
@@ -305,6 +309,7 @@ public:
 			count++;
 			after_state = before_state;
 			before_state = states.back();
+			//std::cout << after_state.hint() << std::endl;
 			float current_value = after_state.evaluation(patterns, net) + after_state.info().rewards;
 			before_state.upgrade_weight( current_value, net, patterns, alpha);
 			states.pop_back();

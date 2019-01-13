@@ -19,7 +19,6 @@
 #include "statistic.h"
 #include "arena.h"
 #include "io.h"
-
 int shell(int argc, const char* argv[]) {
 	arena host("anonymous");
 
@@ -55,11 +54,18 @@ int shell(int argc, const char* argv[]) {
 					// your agent need to take an action
 					action a = host.at(id).take_action();
 					host.at(id).apply_action(a);
-					output() << id << ' ' << a << std::endl;
+					if (a.type() == action::place::type) {
+						output() << id << ' ' << a << '+' << hint << std::endl;
+					} else {
+						output() << id << ' ' << a << std::endl;
+					}
 				} else {
 					// perform your opponent's action
 					action a;
 					std::stringstream(move) >> a;
+					if (a.type() == action::place::type) {
+						hint = move[3] - '0'; // move should be "PT+H" where H is '1', '2', '3', or '4'
+					}
 					host.at(id).apply_action(a);
 				}
 
@@ -136,6 +142,7 @@ int main(int argc, const char* argv[]) {
 	bool summary = false;
 	for (int i = 1; i < argc; i++) {
 		std::string para(argv[i]);
+		
 		if (para.find("--total=") == 0) {
 			total = std::stoull(para.substr(para.find("=") + 1));
 		} else if (para.find("--block=") == 0) {
@@ -170,6 +177,7 @@ int main(int argc, const char* argv[]) {
 	rndenv evil(evil_args);
 
 	while (!stat.is_finished()) {
+		if ( stat.get_count()% 10000 == 0)std::cout << "round:" << stat.get_count() <<std::endl;
 		play.open_episode("~:" + evil.name());
 		evil.open_episode(play.name() + ":~");
 

@@ -27,16 +27,21 @@ public:
 		int previous_dir; 
 		int modify;
 		reward rewards;
+		int hint;
+		int max_tile = 0;
 	};    
 public:
 	board() : tile(), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288 }) {
 		attr.previous_dir = 0;
 		attr.modify = -1;
 		attr.rewards = 0;
+		attr.hint = 0;
+		attr.max_tile = 0;
 	}
 	board(const grid& b, data v) : tile(b), value({ 0, 1, 2, 3, 6, 12, 24, 48, 96, 192, 384, 768, 1536, 3072, 6144, 12288}) {
 		attr.previous_dir = v.previous_dir;
 		attr.modify = v.modify;
+		attr.hint = v.hint;
 	}
 	board(const board& b) = default;
 	board& operator =(const board& b) = default;
@@ -50,7 +55,11 @@ public:
 
 	data info() const { return attr; }
 	data info(data dat) { data old = attr; attr = dat; return old; }
-
+	int hint() const { return attr.hint; }
+	void hint(int h) { attr.hint = h; }
+	int last_dir() const { return attr.previous_dir; }
+	void last_dir(int d) { attr.previous_dir = d; }
+	int get_max_tile()const{ return attr.max_tile; }
 public:
 	bool operator ==(const board& b) const { return tile == b.tile; }
 	bool operator < (const board& b) const { return tile <  b.tile; }
@@ -67,7 +76,9 @@ public:
 	 */
 	reward place(unsigned pos, cell tile) {
 		if (pos >= 16) return -1;
-		if (tile != 1 && tile != 2 && tile != 3) return -1;
+		//if (tile != 1 && tile != 2 && tile != 3) return -1;
+		if (tile > 16) return -1;
+		//if (tile > attr.max_tile) attr.max_tile = tile;
 		operator()(pos) = tile;
 		attr.previous_dir = 0;
 		return 0;
@@ -120,6 +131,7 @@ public:
 				} else if (row[c] == row[c+1] && row[c] != 1 && row[c] != 2){
 					row[c]++;
 					score += ((pow(3,row[c]-2)) - 2*(pow(3,row[c]-3)));
+					if ((int)row[c] > attr.max_tile) attr.max_tile = (int)row[c];
 					row[c+1] = 0;
 				}	
 			}
@@ -241,10 +253,14 @@ public:
 		return tile[idx / 4][idx % 4];
 	}
 	int calculate_index(int i, pattern& patterns){
-		int idx = 0;
+		int idx = attr.hint;
+		if (idx > 4) std::cout << "idx overflow." << std::endl;
 		for (size_t j=0; j<patterns[i].size(); j++) idx = idx * 16 + get_index(patterns[i][j]);
+		//idx = idx * 16 + attr.hint;
+		//std::cout << idx << std::endl;
 		return idx;
 	}
+	
 	friend std::ostream& operator <<(std::ostream& out, const board& b) {
 		out << "+------------------------+" << std::endl;
 		for (auto& row : b.tile) {

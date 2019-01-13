@@ -33,7 +33,7 @@ public:
 				tuples.emplace_back(tuple);
 			}
 		}
-		if ( info == "enhance"){
+		if ( info == "enhance" || info == "enhance_hint"){
 			type = 2;
 			std::array<int, 6> tupleArray = {0, 1, 2, 3, 4, 5}; 
 			vector<int> tuple;

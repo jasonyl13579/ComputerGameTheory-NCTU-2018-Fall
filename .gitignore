@@ -6,7 +6,8 @@
 *.jpg
 *.txt
 *.bin
-
+arena-link-*
+threes
 # Prerequisites
 *.d
 

@@ -11,7 +11,7 @@
 #include "pattern.h"
 #include "weight.h"
 #include <fstream>
-extern int hint = 0;
+extern int HINT_YM = 0;
 class agent {
 public:
 	agent(const std::string& args = "") {
@@ -57,6 +57,37 @@ protected:
 	std::default_random_engine engine;
 };
 
+class state_type {
+public:
+	enum type : char {
+		before  = 'b',
+		after   = 'a',
+		illegal = 'i'
+	};
+
+public:
+	state_type() : t(illegal) {}
+	state_type(const state_type& st) = default;
+	state_type(state_type::type code) : t(code) {}
+
+	/*friend std::istream& operator >>(std::istream& in, state_type& type) {
+		std::string s;
+		if (in >> s) type.t = static_cast<state_type::type>((s + " ").front());
+		return in;
+	}
+
+	friend std::ostream& operator <<(std::ostream& out, const state_type& type) {
+		return out << char(type.t);
+	}*/
+
+	bool is_before()  const { return t == before; }
+	bool is_after()   const { return t == after; }
+	bool is_illegal() const { return t == illegal; }
+
+private:
+	type t;
+};
+
 /**
  * base agent for agents with weight tables
  */
@@ -93,7 +124,7 @@ protected:
 			hint_num = 5;
 		}
 		for (size_t i=0; i<patterns.size(); i++){
-			net.emplace_back(pow(16, patterns[i].size())* hint_num); //*5 = hint
+			net.emplace_back(pow(16, patterns[i].size())* hint_num); //*5 = HINT_YM
 		}
 		//std::cout << patterns[1][0] << std::endl;
 		//std::cout << patterns[2][0] << std::endl;
@@ -144,13 +175,154 @@ protected:
 	float alpha;
 };
 
+class rndenv : public weight_agent {
+public:
+	rndenv(const std::string& args = "") : weight_agent("name=TD_ENV role=environment " + args),
+		space({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),line({ 0, 1, 2, 3}),count(0){
+			for (int i=0 ; i<4 ; i++) {popup.push_back(1);popup.push_back(2);popup.push_back(3);}
+			std::random_shuffle ( popup.begin(), popup.end() );
+		}
+	virtual void open_episode(const std::string& flag = "") {
+		count = 0;
+		bonus_tile_count = 0;
+		bonus_tile_valid = false;
+		popup.clear();
+		for (int i=0 ; i<4 ; i++) {popup.push_back(1);popup.push_back(2);popup.push_back(3);}
+		std::random_shuffle ( popup.begin(), popup.end() );
+		HINT_YM = popup.back();
+		popup.pop_back();
+	}	
+	virtual action take_action(const board& after) {
+		//std::cout << after.info();
+		//std::cout << popup.size() << std::endl;
+		//std::cout << after;
+		
+		if (popup.size() == 0) {
+			for (int i=0 ; i<4 ; i++) {popup.push_back(1);popup.push_back(2);popup.push_back(3);}
+			std::random_shuffle ( popup.begin(), popup.end() );
+		}
+		board::data d = after.info();
+		switch (d.previous_dir){
+				case 1: // left
+					line = {3, 7, 11, 15};
+					break;
+				case 2: // right
+					line = {0, 4, 8, 12};
+					break;
+				case 3: // up
+					line = {12, 13, 14, 15};
+					break;
+				case 4: // down
+					line = {0, 1, 2, 3};
+					break;
+				case 0: // place
+				default:
+					std::random_shuffle ( space.begin(), space.end() );
+					for (int pos : space) {	
+						if (after(pos) != 0) continue;					
+						board::cell tile = popup.back();
+						popup.pop_back();
+						count ++;
+						action a  = action::place(pos, HINT_YM);
+						HINT_YM = tile >= 4 ? 4 : tile;
+						return a;
+					}
+					return action();
+		}	
+		//std::random_shuffle ( line.begin(), line.end() );
+		if  (!bonus_tile_valid){
+			if (after.get_max_tile() >= 7) bonus_tile_valid = true;
+		}
+		int min_idx = -1;
+		int idx = -1;
+		float min_reward = 1000000;
+		float min_hint = -1;
+		board::cell tile_hint = HINT_YM;
+		if (HINT_YM == 4){
+			const int bonus_num = after.get_max_tile() - 6; // first valid tile-48 (index 7)
+			int r = rand() % bonus_num;
+			tile_hint = r + 4; // minimum tile-6 (index 4)
+			//std::cout << count << ":" << tile_hint << std::endl;
+		}
+		for (int pos : line) {
+			idx ++;
+			if (after(pos) != 0) continue;
+			for (int i=1; i<5; i++){
+				vector<int>::iterator it = find(popup.begin(), popup.end(), i);
+				if (it != popup.end() || (i == 4 && bonus_tile_valid && (count/21) > bonus_tile_count)){
+					board before(after);
+					before.hint(i);
+					action::place(pos, tile_hint).apply(before);
+					float value = minimax(before, state_type::before, popup, 2);
+					if (value < min_reward){
+						min_reward = value;
+						min_idx = idx;
+						min_hint = i;
+					}
+				}
+			}
+			//board before(after);
+			//current.hint(HINT_YM);
+			//action::place(pos, tile_hint).apply(before);
+			//float value = minimax(current, state_type::before, popup);
+			//float value = current.evaluation(patterns, net);
+			//std::cout << value << std::endl;
+		}
+		//std::cout << "idx:" << min_idx << std::endl;
+		if (min_idx == -1) return action();
+		if (min_hint != 4){
+			vector<int>::iterator it = find(popup.begin(), popup.end(), min_hint);
+			popup.erase(it);
+		}else bonus_tile_count++;
+		HINT_YM = min_hint;
+		/*if (bonus_tile_valid && (count/21) > bonus_tile_count && (rand() % 21) == 0){
+			bonus_tile_count++;
+			HINT_YM = 4;
+		}else{
+			HINT_YM = popup.back();
+			popup.pop_back();
+		}*/
+		count ++;
+		return action::place(line[min_idx], tile_hint);
+	}
+	float minimax(board current, state_type t, std::vector<int> bag, int layer_iter){
+		layer_iter -- ;
+		if (t.is_before()){
+			float max_reward = -1000000;
+			std::array<int, 4> opcode = { 0, 1, 2, 3 };
+			for (int op : opcode) {
+				board after = board(current).slide_with_board(op);
+				if (after == board()) continue;
+				after.hint(current.hint());
+				float value = 0;
+				if (layer_iter == 1) value = after.evaluation(patterns, net);
+				else value = minimax(after, state_type::after, bag, layer_iter);
+				if (after.info().rewards + value > max_reward){
+					max_reward = after.info().rewards + value;
+				}
+			}
+			return max_reward;
+		}else if(t.is_after()){
+			std::cout << "error";
+			return -1;
+		}
+		return 0;
+	}
+private:
+	std::array<int, 16> space;
+	std::array<int, 4> line;
+	std::vector<int> popup;
+	int count;
+	bool bonus_tile_valid = false;
+	int bonus_tile_count = 0;
+};
 /**
  * random environment
  * add a new random tile to an empty cell
  * 2-tile: 90%
  * 4-tile: 10%
  */
-class rndenv : public random_agent {
+/*class rndenv : public random_agent {
 public:
 	rndenv(const std::string& args = "") : random_agent("name=random role=environment " + args),
 		space({ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15}),line({ 0, 1, 2, 3}),count(0){
@@ -164,7 +336,7 @@ public:
 		popup.clear();
 		for (int i=0 ; i<4 ; i++) {popup.push_back(1);popup.push_back(2);popup.push_back(3);}
 		std::random_shuffle ( popup.begin(), popup.end() );
-		hint = popup.back();
+		HINT_YM = popup.back();
 		popup.pop_back();
 	}	
 	virtual action take_action(const board& after) {
@@ -198,8 +370,8 @@ public:
 						board::cell tile = popup.back();
 						popup.pop_back();
 						count ++;
-						action a  = action::place(pos, hint);
-						hint = tile >= 4 ? 4 : tile;
+						action a  = action::place(pos, HINT_YM);
+						HINT_YM = tile >= 4 ? 4 : tile;
 						return a;
 					}
 					return action();
@@ -223,9 +395,9 @@ public:
 					count ++;
 					bonus_tile_count++;
 					//std::cout << "Fuck:" << tile << std::endl;
-					action a  = action::place(pos, hint);
-					hint = tile >= 4 ? 4 : tile;
-					//hint = tile;
+					action a  = action::place(pos, HINT_YM);
+					HINT_YM = tile >= 4 ? 4 : tile;
+					//HINT_YM = tile;
 					return a;
 				}
 			}
@@ -233,8 +405,8 @@ public:
 			popup.pop_back();
 			count ++;
 			//if (count == 3) count = 0;
-			action a  = action::place(pos, hint);
-			hint = tile >= 4 ? 4 : tile;
+			action a  = action::place(pos, HINT_YM);
+			HINT_YM = tile >= 4 ? 4 : tile;
 			return a;
 		}
 		return action();
@@ -249,7 +421,7 @@ private:
 	bool bonus_tile_valid = false;
 	int bonus_tile_count = 0;
 };
-
+*/
 /**
  * weight player
  * select a legal action by TDlearning
@@ -260,7 +432,7 @@ public:
 		opcode({ 0, 1, 2, 3 }) {}
 
 	virtual action take_action(const board& before) {
-		//before.hint(hint);
+		//before.HINT_YM(HINT_YM);
 		int max_idx = 0;
 		float max_reward = -1000000;
 		bool vaild = false;
@@ -269,7 +441,7 @@ public:
 			board after = board(before).slide_with_board(op);
 			if (after == board()) continue;
 			vaild = true;
-			after.hint(hint);
+			after.hint(HINT_YM);
 			float value = after.evaluation(patterns, net);
 			//if (after.info().rewards + value < 0) std::cout << after.info().rewards + value << std::endl;
 			if (after.info().rewards + value > max_reward){
@@ -279,8 +451,8 @@ public:
 			}
 		}
 		if (vaild) {
-			//std::cout << hint << std::endl;
-			hold.hint(hint);
+			//std::cout << HINT_YM << std::endl;
+			hold.hint(HINT_YM);
 			states.push_back(hold);
 			return action::slide(max_idx);
 		}
@@ -288,21 +460,11 @@ public:
 			//std::cout << before << std::endl;
 			return action();
 		}
-		/*if(max_reward != -1) {
-			if (previous.info().modify != -1) previous.upgrade_weight( previous_value, max_reward, net, patterns, alpha);
-			previous = hold;
-			previous_value = hold_value;
-			return action::slide(max_idx);
-		}else{
-			previous.upgrade_weight( previous_value, -1, net, patterns, alpha);
-			return action();
-		}*/
 	}
 	
 	void close_episode(const std::string& flag = "") {
 		
 		backward_training();
-		//std::cout << states.size();
 		states.clear();
 		//forward_training();
 	}
@@ -318,7 +480,7 @@ public:
 			count++;
 			after_state = before_state;
 			before_state = states.back();
-			//std::cout << after_state.hint() << std::endl;
+			//std::cout << after_state.HINT_YM() << std::endl;
 			float current_value = after_state.evaluation(patterns, net) + after_state.info().rewards;
 			before_state.upgrade_weight( current_value, net, patterns, alpha);
 			states.pop_back();

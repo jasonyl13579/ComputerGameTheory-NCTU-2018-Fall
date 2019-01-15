@@ -55,7 +55,7 @@ int shell(int argc, const char* argv[]) {
 					action a = host.at(id).take_action();
 					host.at(id).apply_action(a);
 					if (a.type() == action::place::type) {
-						output() << id << ' ' << a << '+' << hint << std::endl;
+						output() << id << ' ' << a << '+' << HINT_YM << std::endl;
 					} else {
 						output() << id << ' ' << a << std::endl;
 					}
@@ -64,7 +64,7 @@ int shell(int argc, const char* argv[]) {
 					action a;
 					std::stringstream(move) >> a;
 					if (a.type() == action::place::type) {
-						hint = move[3] - '0'; // move should be "PT+H" where H is '1', '2', '3', or '4'
+						HINT_YM = move[3] - '0'; // move should be "PT+H" where H is '1', '2', '3', or '4'
 					}
 					host.at(id).apply_action(a);
 				}
@@ -132,7 +132,7 @@ int shell(int argc, const char* argv[]) {
 }
 
 int main(int argc, const char* argv[]) {
-	std::cout << "2048-Demo: ";
+	std::cout << "Threes-Demo: ";
 	std::copy(argv, argv + argc, std::ostream_iterator<const char*>(std::cout, " "));
 	std::cout << std::endl << std::endl;
 

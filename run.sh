@@ -1,2 +1,2 @@
 #!/bin/bash
-./2048 --shell --save="stat.txt" --login="0760222|tFPIRTSdG1" --play="name=TD init=enhance load=w.bin" 
+./2048 --shell --save="stat.txt" --login="0760222|tFPIRTSdG1" --play="name=TD init=enhance_hint load=w_pj5.bin" --evil="name=TD_ENV init=enhance_hint load=w_pj5.bin"

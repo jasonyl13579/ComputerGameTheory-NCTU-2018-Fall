@@ -244,6 +244,8 @@ public:
 			tile_hint = r + 4; // minimum tile-6 (index 4)
 			//std::cout << count << ":" << tile_hint << std::endl;
 		}
+		int minimax_count = count+1;
+		int minimax_bonus_count = bonus_tile_count;
 		for (int pos : line) {
 			idx ++;
 			if (after(pos) != 0) continue;
@@ -253,7 +255,7 @@ public:
 					board before(after);
 					before.hint(i);
 					action::place(pos, tile_hint).apply(before);
-					float value = minimax(before, state_type::before, popup, 2);
+					float value = minimax(before, state_type::before, popup, 4, minimax_count, minimax_bonus_count + (i == 4) ? 1 : 0);
 					if (value < min_reward){
 						min_reward = value;
 						min_idx = idx;
@@ -261,33 +263,21 @@ public:
 					}
 				}
 			}
-			//board before(after);
-			//current.hint(HINT_YM);
-			//action::place(pos, tile_hint).apply(before);
-			//float value = minimax(current, state_type::before, popup);
-			//float value = current.evaluation(patterns, net);
-			//std::cout << value << std::endl;
 		}
-		//std::cout << "idx:" << min_idx << std::endl;
+		//std::cout << min_idx << std::endl;
 		if (min_idx == -1) return action();
 		if (min_hint != 4){
 			vector<int>::iterator it = find(popup.begin(), popup.end(), min_hint);
 			popup.erase(it);
 		}else bonus_tile_count++;
 		HINT_YM = min_hint;
-		/*if (bonus_tile_valid && (count/21) > bonus_tile_count && (rand() % 21) == 0){
-			bonus_tile_count++;
-			HINT_YM = 4;
-		}else{
-			HINT_YM = popup.back();
-			popup.pop_back();
-		}*/
 		count ++;
 		return action::place(line[min_idx], tile_hint);
 	}
-	float minimax(board current, state_type t, std::vector<int> bag, int layer_iter){
+	float minimax(board current, state_type t, std::vector<int> bag, int layer_iter, int minimax_count, int minimax_bonus_count){
 		layer_iter -- ;
 		if (t.is_before()){
+			//std::cout << "test" << std::endl;
 			float max_reward = -1000000;
 			std::array<int, 4> opcode = { 0, 1, 2, 3 };
 			for (int op : opcode) {
@@ -296,15 +286,85 @@ public:
 				after.hint(current.hint());
 				float value = 0;
 				if (layer_iter == 1) value = after.evaluation(patterns, net);
-				else value = minimax(after, state_type::after, bag, layer_iter);
+				else value = minimax(after, state_type::after, bag, layer_iter, minimax_count, minimax_bonus_count);
+				//std::cout << value << std::endl;
 				if (after.info().rewards + value > max_reward){
 					max_reward = after.info().rewards + value;
 				}
 			}
 			return max_reward;
 		}else if(t.is_after()){
-			std::cout << "error";
-			return -1;
+			minimax_count++;
+			if (bag.size() == 0) {
+				for (int i=0 ; i<4 ; i++) {bag.push_back(1);bag.push_back(2);bag.push_back(3);}
+			}
+			board::data d = current.info();
+			std::array<int, 4> line2;
+			switch (d.previous_dir){
+					case 1: // left
+						line2 = {3, 7, 11, 15};
+						break;
+					case 2: // right
+						line2 = {0, 4, 8, 12};
+						break;
+					case 3: // up
+						line2 = {12, 13, 14, 15};
+						break;
+					case 4: // down
+						line2 = {0, 1, 2, 3};
+						break;
+					case 0: // place
+					default:
+						break;
+			}	
+			
+			int idx = -1;
+			float min_reward = 1000000;
+			//float min_hint = -1;
+			
+			board::cell tile_hint = current.hint();
+			if (HINT_YM == 4){
+				const int bonus_num = current.get_max_tile() - 6; // first valid tile-48 (index 7)
+				int r = rand() % bonus_num;
+				tile_hint = r + 4; // minimum tile-6 (index 4)
+				//std::cout << count << ":" << tile_hint << std::endl;
+			}
+			for (int pos : line2) {
+				idx ++;
+				if (current(pos) != 0) continue;
+				for (int i=1; i<5; i++){
+					vector<int>::iterator it = find(bag.begin(), bag.end(), i);
+					if (it != bag.end() || (i == 4 && bonus_tile_valid && (minimax_count/21) > minimax_bonus_count)){
+						board before(current);
+						before.hint(i);
+						action::place(pos, tile_hint).apply(before);
+						std::vector<int> after_bag = bag;
+						if (i != 4){
+							vector<int>::iterator it = find(after_bag.begin(), after_bag.end(), i);
+							after_bag.erase(it);
+						}
+						float value = minimax(before, state_type::before, after_bag, layer_iter, minimax_count, minimax_bonus_count + (i == 4) ? 1 : 0);
+						/*float value = 0;
+						if (tile_hint == 4){
+							const int bonus_num = current.get_max_tile() - 6; // first valid tile-48 (index 7)
+							//int r = rand() % bonus_num;
+							for (int j= 0; j< bonus_num; j++){
+								action::place(pos, j + 4).apply(before);
+								value += minimax(before, state_type::before, bag, layer_iter, minimax_count, minimax_bonus_count);
+							}
+							value/= bonus_num;
+						}else{
+							action::place(pos, tile_hint).apply(before);
+							value = minimax(before, state_type::before, bag, layer_iter, minimax_count, minimax_bonus_count);
+						}*/
+						if (value < min_reward){
+							min_reward = value;
+						}
+					}
+				}
+			}
+			
+			return min_reward;
 		}
 		return 0;
 	}

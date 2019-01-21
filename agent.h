@@ -93,7 +93,7 @@ private:
  */
 class weight_agent : public agent {
 public:
-	weight_agent(const std::string& args = "") : agent(args), alpha(0.003125f), search_layer(2), patterns(initial_state()) {
+	weight_agent(const std::string& args = "") : agent(args), alpha(0.003125f), search_layer(2), save(false), patterns(initial_state()) {
 		if (meta.find("init") != meta.end()) // pass init=... to initialize the weight
 			init_weights(meta["init"]);
 		else{
@@ -106,6 +106,8 @@ public:
 			alpha = float(meta["alpha"]);
 		if (meta.find("layer") != meta.end())
 			search_layer = int(meta["layer"]);
+		if (meta.find("save") != meta.end()) 
+			save = true;
 	}
 	virtual ~weight_agent() {
 		if (meta.find("save") != meta.end()) // pass save=... to save to a specific file
@@ -160,6 +162,7 @@ protected:
 	std::vector<weight> net;
 	float alpha;
 	int search_layer;
+	bool save;
 	pattern patterns;
 };
 
@@ -237,7 +240,7 @@ public:
 		if (search_layer != 0){
 			int min_idx = -1;
 			int idx = -1;
-			float min_reward = 1000000;
+			float min_reward = 100000000;
 			float min_hint = -1;
 			board::cell tile_hint = HINT_YM;
 			if (HINT_YM == 4){
@@ -257,7 +260,7 @@ public:
 						board before(after);
 						before.hint(i);
 						action::place(pos, tile_hint).apply(before);
-						float value = alphabeta(before, state_type::before, popup, search_layer, minimax_count, minimax_bonus_count + (i == 4) ? 1 : 0, -1000000, 1000000);
+						float value = alphabeta(before, state_type::before, popup, search_layer, minimax_count, minimax_bonus_count + (i == 4) ? 1 : 0, -10000000, 10000000);
 						//float value = minimax(before, state_type::before, popup, search_layer, minimax_count, minimax_bonus_count + (i == 4) ? 1 : 0);
 						if (value < min_reward){
 							min_reward = value;
@@ -298,10 +301,8 @@ public:
 	}
 	float minimax(board current, state_type t, std::vector<int> bag, int layer_iter, int minimax_count, int minimax_bonus_count){
 		layer_iter -- ;
-		//if (layer_iter == 0) return current.evaluation(patterns, net);
 		if (t.is_before()){
-			//std::cout << "test" << std::endl;
-			float max_reward = -1000000;
+			float max_reward = -100000000;
 			std::array<int, 4> opcode = { 0, 1, 2, 3 };
 			for (int op : opcode) {
 				board after = board(current).slide_with_board(op);
@@ -342,7 +343,7 @@ public:
 			}	
 			
 			int idx = -1;
-			float min_reward = 1000000;
+			float min_reward = 10000000;
 			//float min_hint = -1;
 			
 			board::cell tile_hint = current.hint();
@@ -350,7 +351,6 @@ public:
 				const int bonus_num = current.get_max_tile() - 6; // first valid tile-48 (index 7)
 				int r = rand() % bonus_num;
 				tile_hint = r + 4; // minimum tile-6 (index 4)
-				//std::cout << count << ":" << tile_hint << std::endl;
 			}
 			for (int pos : line2) {
 				idx ++;
@@ -380,7 +380,6 @@ public:
 	}
 	float alphabeta(board current, state_type t, std::vector<int> bag, int layer_iter, int minimax_count, int minimax_bonus_count, float a, float b){
 		layer_iter -- ;
-		//if (layer_iter == 0) return current.evaluation(patterns, net);
 		if (t.is_before()){
 			std::array<int, 4> opcode = { 0, 1, 2, 3 };
 			for (int op : opcode) {
@@ -579,7 +578,6 @@ public:
 		
 		if (tile_count == 9){
 			for (int i=0; i<16; i++){
-				//std::cout << before(i) <<std::endl;
 				vector<int>::iterator it = find(popup.begin(), popup.end(), before(i));
 				if (it != popup.end()) popup.erase(it);
 			}
@@ -597,8 +595,8 @@ public:
 		}else {
 			bonus_tile_count++;
 		}
-		int max_idx = 0;
-		float max_reward = -1000000;
+		int max_idx = -1;
+		float max_reward = -100000000;
 		bool vaild = false;
 		board hold;
 		for (int op : opcode) {
@@ -606,7 +604,7 @@ public:
 			if (after == board()) continue;
 			vaild = true;
 			after.hint(HINT_YM);
-			float value = alphabeta(after, state_type::after, popup, search_layer+1, tile_count, bonus_tile_count, -1000000, 1000000);
+			float value = alphabeta(after, state_type::after, popup, search_layer+1, tile_count, bonus_tile_count, -10000000, 10000000);
 			//float value = minimax(after, state_type::after, popup, search_layer+1, tile_count, bonus_tile_count);
 			//float value = after.evaluation(patterns, net);
 			//if (after.info().rewards + value < 0) std::cout << after.info().rewards + value << std::endl;
@@ -616,10 +614,11 @@ public:
 				max_idx = op;
 			}
 		}
-		if (vaild) {
-			//std::cout << HINT_YM << std::endl;
-			hold.hint(HINT_YM);
-			states.push_back(hold);
+		if (vaild && max_idx != -1) {
+			if(save){
+				hold.hint(HINT_YM);
+				states.push_back(hold);
+			}
 			return action::slide(max_idx);
 		}
 		else {
@@ -628,8 +627,7 @@ public:
 	}
 	
 	void close_episode(const std::string& flag = "") {
-		
-		backward_training();
+		if (save) backward_training();
 		states.clear();
 		//forward_training();
 	}
@@ -638,19 +636,16 @@ public:
 		board after_state = {};
 		before_state.upgrade_weight(-1, net, patterns, alpha);
 		states.pop_back();
-		//if (after_state == before_state) std::cout << "fuck\n";
+
 		int count = 0;
 		while (!states.empty()){
-			//cout << before_state;
 			count++;
 			after_state = before_state;
 			before_state = states.back();
-			//std::cout << after_state.HINT_YM() << std::endl;
 			float current_value = after_state.evaluation(patterns, net) + after_state.info().rewards;
 			before_state.upgrade_weight( current_value, net, patterns, alpha);
 			states.pop_back();
 		}	
-		//std::cout << count << "\n";
 	}
 	void forward_training(){
 		return;
@@ -661,7 +656,7 @@ public:
 		if (layer_iter == 0) return current.evaluation(patterns, net);
 		if (t.is_before()){
 			minimax_count++;
-			float max_reward = -1000000;
+			float max_reward = -100000000;
 			std::array<int, 4> opcode = { 0, 1, 2, 3 };
 			for (int op : opcode) {
 				//board after(board);	
@@ -699,7 +694,7 @@ public:
 			}	
 			
 			int idx = -1;
-			float min_reward = 1000000;
+			float min_reward = 100000000;
 			//float min_hint = -1;
 			
 			board::cell tile_hint = current.hint();
@@ -707,7 +702,6 @@ public:
 				const int bonus_num = current.get_max_tile() - 6; // first valid tile-48 (index 7)
 				int r = rand() % bonus_num;
 				tile_hint = r + 4; // minimum tile-6 (index 4)
-				//std::cout << count << ":" << tile_hint << std::endl;
 			}
 			for (int pos : line2) {
 				idx ++;
